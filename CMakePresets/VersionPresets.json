@@ -1,0 +1,23 @@
+{
+    "version": 10,
+    "cmakeMinimumRequired": {
+        "major": 4,
+        "minor": 0,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "hidden": true,
+            "name": "versions",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "GITHUB_BRANCH_cpm": "v0.42.0",
+                "GITHUB_BRANCH_cpm_SHA256": "2020b4fc42dba44817983e06342e682ecfc3d2f484a581f11cc5731fbe4dce8a",
+                "GITHUB_BRANCH_toolchain": "HEAD",
+                "GITHUB_BRANCH_toolchain_SHA256": "1245",
+                "GITHUB_BRANCH_stm32cubef4": "v1.28.3",
+                "GITHUB_BRANCH_stm32cubef4_SHA256": "7890"
+            }
+        }
+    ]
+}

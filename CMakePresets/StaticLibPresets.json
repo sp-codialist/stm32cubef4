@@ -1,0 +1,75 @@
+{
+    "version": 10,
+    "cmakeMinimumRequired": {
+        "major": 4,
+        "minor": 0,
+        "patch": 0
+    },
+    "include": [
+        "HiddenPresets.json"
+    ],
+    "configurePresets": [
+        {
+            "inherits":[
+                "debug",
+                "mcu",
+                "gnuarm14.3"
+            ],
+            "name": "stm32cubef4-d-gnuarm14.3",
+            "hidden": false,
+            "displayName": "Debug STM32CubeMX F4 on arm gcc 14.3 docker",
+            "description": "Debug STM32CubeMX F4 on arm gcc 14.3 docker"
+        },
+        {
+            "inherits":[
+                "release",
+                "mcu",
+                "gnuarm14.3"
+            ],
+            "name": "stm32cubef4-r-gnuarm14.3",
+            "hidden": false,
+            "displayName": "Release STM32CubeMX F4 on arm gcc 14.3 docker",
+            "description": "Release STM32CubeMX F4 on arm gcc 14.3 docker"
+        },
+        {
+            "inherits":[
+                "debug",
+                "mcu",
+                "atfe21.1"
+            ],
+            "name": "stm32cubef4-d-atfe21.1",
+            "hidden": false,
+            "displayName": "Debug STM32CubeMX F4 on ATfE 21.1 docker",
+            "description": "Debug STM32CubeMX F4 on ATfE 21.1 docker"
+        },
+        {
+            "inherits":[
+                "release",
+                "mcu",
+                "atfe21.1"
+            ],
+            "name": "stm32cubef4-r-atfe21.1",
+            "hidden": false,
+            "displayName": "Release STM32CubeMX F4 on ATfE 21.1 docker",
+            "description": "Release STM32CubeMX F4 on ATfE 21.1 docker"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "stm32cubef4-d-gnuarm14.3",
+            "configurePreset": "stm32cubef4-d-gnuarm14.3"
+        },
+        {
+            "name": "stm32cubef4-r-gnuarm14.3",
+            "configurePreset": "stm32cubef4-r-gnuarm14.3"
+        },
+        {
+            "name": "stm32cubef4-d-atfe21.1",
+            "configurePreset": "stm32cubef4-d-atfe21.1"
+        },
+        {
+            "name": "stm32cubef4-r-atfe21.1",
+            "configurePreset": "stm32cubef4-r-atfe21.1"
+        }
+    ]
+}
