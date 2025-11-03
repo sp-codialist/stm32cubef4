@@ -15,6 +15,7 @@ file (
 include (cmake/CPM.cmake)
 include (cmake/deps.toolchain.cmake)
 include (cmake/deps.stm32cubef4.cmake)
+include (cmake/stm32cubef4.lib.cmake)
 project (
     stm32cubef4_lib
     VERSION 0.0.0.255

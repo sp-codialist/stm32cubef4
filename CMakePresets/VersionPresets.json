@@ -16,7 +16,7 @@
                 "GITHUB_BRANCH_toolchain": "HEAD",
                 "GITHUB_BRANCH_toolchain_SHA256": "1245",
                 "GITHUB_BRANCH_stm32cubef4": "v1.28.3",
-                "GITHUB_BRANCH_stm32cubef4_SHA256": "7890"
+                "GITHUB_BRANCH_stm32cubef4_SHA256": "c4d121386fc1b0d6566c4ae9e08af14b24eea089250a0e86ff341dcf7ddb256e"
             }
         }
     ]
