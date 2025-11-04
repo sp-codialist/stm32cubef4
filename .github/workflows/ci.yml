@@ -1,0 +1,122 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run pre-commit hooks
+      uses: pre-commit/action@v3.0.0
+      
+  build-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [
+          "stm32cubef4-d-gnuarm14.3",
+          "stm32cubef4-r-gnuarm14.3"
+        ]
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: recursive
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ matrix.preset }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-${{ matrix.preset }}-
+          ${{ runner.os }}-buildx-
+
+    - name: Install CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.28'
+
+    - name: Configure CMake
+      run: |
+        cmake --preset ${{ matrix.preset }}
+
+    - name: Build
+      run: |
+        cmake --build --preset ${{ matrix.preset }} --config $BUILD_TYPE
+
+    - name: Test
+      working-directory: build/${{ matrix.preset }}
+      run: |
+        ctest -C $BUILD_TYPE --output-on-failure --verbose
+
+    - name: Test packaging
+      working-directory: build/${{ matrix.preset }}
+      run: |
+        # Test CPack package generation
+        cpack -G "TGZ" -C $BUILD_TYPE --verbose
+        
+        # Verify packages were created
+        if [ -f "*.tar.gz" ]; then
+          echo "✅ Package generation successful"
+          ls -la *.tar.gz
+        else
+          echo "⚠️ No packages generated"
+        fi
+
+    - name: Static Analysis (if available)
+      run: |
+        # Run static analysis tools if available
+        if command -v cppcheck &> /dev/null; then
+          find . -name "*.c" -o -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | \
+          xargs cppcheck --enable=all --error-exitcode=1 --suppress=missingIncludeSystem
+        fi
+      continue-on-error: true
+
+    - name: Upload build logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs-${{ matrix.preset }}
+        path: |
+          build/${{ matrix.preset }}/CMakeFiles/*.log
+          build/${{ matrix.preset }}/Testing/Temporary/
+        retention-days: 7
+
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

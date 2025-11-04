@@ -1,0 +1,238 @@
+name: Build and Release Static Library
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [
+          "stm32cubef4-r-gnuarm14.3",
+          "stm32cubef4-d-gnuarm14.3"
+        ]
+        
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        submodules: recursive
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ matrix.preset }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-${{ matrix.preset }}-
+          ${{ runner.os }}-buildx-
+
+    - name: Install CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+      with:
+        cmake-version: '3.28'
+
+    - name: Configure CMake
+      run: |
+        cmake --preset ${{ matrix.preset }}
+
+    - name: Build
+      run: |
+        cmake --build --preset ${{ matrix.preset }} --config $BUILD_TYPE
+
+    - name: Test
+      working-directory: build/${{ matrix.preset }}
+      run: |
+        ctest -C $BUILD_TYPE --output-on-failure
+
+    - name: Package with CPack
+      working-directory: build/${{ matrix.preset }}
+      run: |
+        # Create packages using CPack
+        cpack -G "TGZ;ZIP" -C $BUILD_TYPE
+        
+        # List generated packages
+        ls -la *.tar.gz *.zip 2>/dev/null || true
+        
+    - name: Package artifacts (fallback)
+      run: |
+        # Create artifact directory
+        mkdir -p artifacts/${{ matrix.preset }}
+        
+        # Copy CPack generated packages first
+        if [ -d "build/${{ matrix.preset }}" ]; then
+          find build/${{ matrix.preset }} -name "*.tar.gz" -o -name "*.zip" -exec cp {} artifacts/${{ matrix.preset }}/ \; 2>/dev/null || true
+        fi
+        
+        # Fallback: Copy built libraries manually if CPack packages don't exist
+        if [ ! "$(ls -A artifacts/${{ matrix.preset }}/ 2>/dev/null)" ]; then
+          find build/${{ matrix.preset }} -name "*.a" -exec cp {} artifacts/${{ matrix.preset }}/ \; 2>/dev/null || true
+          
+          # Copy headers if they exist
+          if [ -d "build/${{ matrix.preset }}/include" ]; then
+            cp -r build/${{ matrix.preset }}/include artifacts/${{ matrix.preset }}/
+          fi
+          
+          # Create a manual tarball
+          if [ "$(ls -A artifacts/${{ matrix.preset }}/ 2>/dev/null)" ]; then
+            tar -czf artifacts/${{ matrix.preset }}/${{ matrix.preset }}-static-lib.tar.gz -C artifacts/${{ matrix.preset }} .
+          fi
+        fi
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.preset }}-packages
+        path: |
+          artifacts/${{ matrix.preset }}/
+          build/${{ matrix.preset }}/*.tar.gz
+          build/${{ matrix.preset }}/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./artifacts
+
+    - name: Prepare release assets
+      run: |
+        # Create release directory
+        mkdir -p release-assets
+        
+        # Copy CPack generated packages for release
+        for preset in stm32cubef4-r-gnuarm14.3 stm32cubef4-d-gnuarm14.3; do
+          # Copy all CPack generated files
+          if [ -d "artifacts/${preset}-packages" ]; then
+            find "artifacts/${preset}-packages" -name "*.tar.gz" -o -name "*.zip" -exec cp {} release-assets/ \; 2>/dev/null || true
+          fi
+          
+          # Fallback to manual packages
+          if [ -f "artifacts/${preset}-packages/${preset}-static-lib.tar.gz" ]; then
+            cp "artifacts/${preset}-packages/${preset}-static-lib.tar.gz" "release-assets/"
+          fi
+        done
+        
+        # Create a combined development package
+        mkdir -p combined-release/debug combined-release/release combined-release/docs combined-release/cmake
+        
+        # Extract and organize packages
+        for file in release-assets/*.tar.gz; do
+          if [ -f "$file" ]; then
+            filename=$(basename "$file" .tar.gz)
+            mkdir -p "temp-extract/$filename"
+            tar -xzf "$file" -C "temp-extract/$filename" 2>/dev/null || true
+            
+            # Organize by build type
+            if [[ "$filename" =~ debug|d- ]]; then
+              cp -r "temp-extract/$filename"/* combined-release/debug/ 2>/dev/null || true
+            else
+              cp -r "temp-extract/$filename"/* combined-release/release/ 2>/dev/null || true
+            fi
+            
+            # Copy documentation and cmake files to common areas
+            find "temp-extract/$filename" -name "*.md" -o -name "*.txt" -o -name "*.html" -exec cp {} combined-release/docs/ \; 2>/dev/null || true
+            find "temp-extract/$filename" -name "*.cmake" -exec cp {} combined-release/cmake/ \; 2>/dev/null || true
+          fi
+        done
+        
+        # Create combined development package
+        if [ "$(ls -A combined-release/ 2>/dev/null)" ]; then
+          tar -czf release-assets/stm32cubef4-complete-${GITHUB_REF_NAME}.tar.gz -C combined-release .
+        fi
+        
+        # Cleanup
+        rm -rf temp-extract 2>/dev/null || true
+
+    - name: Extract version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF_NAME#v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag_name=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cat > RELEASE_NOTES.md << EOF
+        # STM32CubeF4 Static Library Release ${{ steps.get_version.outputs.tag_name }}
+        
+        ## What's Included
+        
+        This release contains pre-built static libraries for STM32CubeF4:
+        
+        - **Debug Build**: Compiled with debug symbols and optimizations disabled
+        - **Release Build**: Optimized build for production use
+        - **Combined Package**: Both debug and release libraries in one archive
+        
+        ## Build Configuration
+        
+        - **Toolchain**: ARM GCC 14.3
+        - **CMake Version**: 3.28+
+        - **Target**: STM32F4 series microcontrollers
+        
+        ## Files
+        
+        - \`STM32CubeF4-*-debug.tar.gz\` - Debug library archive
+        - \`STM32CubeF4-*-debug.zip\` - Debug library ZIP  
+        - \`STM32CubeF4-*-release.tar.gz\` - Release library archive
+        - \`STM32CubeF4-*-release.zip\` - Release library ZIP
+        - \`stm32cubef4-complete-${{ steps.get_version.outputs.tag_name }}.tar.gz\` - Combined package
+        
+        ## Usage
+        
+        Extract the appropriate archive and link the static libraries in your STM32F4 project.
+        
+        ## Checksums
+        
+        \`\`\`
+        $(cd release-assets && sha256sum *.tar.gz)
+        \`\`\`
+        EOF
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag_name }}
+        name: STM32CubeF4 Static Library ${{ steps.get_version.outputs.tag_name }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: ${{ contains(steps.get_version.outputs.tag_name, '-') }}
+        files: |
+          release-assets/*.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cleanup:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Delete temporary artifacts
+      uses: geekyeggo/delete-artifact@v2
+      with:
+        name: |
+          stm32cubef4-r-gnuarm14.3-packages
+          stm32cubef4-d-gnuarm14.3-packages
+        failOnError: false

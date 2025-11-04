@@ -1,0 +1,111 @@
+name: Documentation and Release Management
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'Documentation/**'
+      - '**.md'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        npm install -g @marp-team/marp-cli
+        sudo apt-get update
+        sudo apt-get install -y pandoc texlive-latex-base texlive-fonts-recommended
+
+    - name: Generate documentation
+      run: |
+        # Create docs output directory
+        mkdir -p docs-output
+        
+        # Convert README to different formats
+        if [ -f "README.md" ]; then
+          pandoc README.md -o docs-output/README.pdf
+          pandoc README.md -o docs-output/README.html
+        fi
+        
+        # Process any markdown files in Documentation directory
+        if [ -d "Documentation" ]; then
+          find Documentation -name "*.md" -exec sh -c '
+            for file; do
+              base=$(basename "$file" .md)
+              dir=$(dirname "$file" | sed "s|Documentation|docs-output|")
+              mkdir -p "$dir"
+              pandoc "$file" -o "$dir/$base.pdf"
+              pandoc "$file" -o "$dir/$base.html"
+            done
+          ' sh {} +
+        fi
+
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs-output/
+
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs-output
+        publish_branch: gh-pages
+
+  generate-changelog:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      uses: orhun/git-cliff-action@v2
+      id: git-cliff
+      with:
+        config: |
+          [changelog]
+          header = """
+          # Changelog
+          
+          All notable changes to this project will be documented in this file.
+          """
+          body = """
+          {% for group, commits in commits | group_by(attribute="group") %}
+          ## {{ group | striptags | trim | upper_first }}
+          {% for commit in commits %}
+          - {{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ commit.id }}))
+          {% endfor %}
+          
+          {% endfor %}
+          """
+          trim = true
+
+    - name: Update CHANGELOG.md
+      run: |
+        echo "${{ steps.git-cliff.outputs.changelog }}" > CHANGELOG.md
+
+    - name: Commit changelog
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: 'docs: update CHANGELOG.md'
+        file_pattern: CHANGELOG.md
