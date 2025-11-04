@@ -13,8 +13,8 @@
             "cacheVariables": {
                 "GITHUB_BRANCH_cpm": "v0.42.0",
                 "GITHUB_BRANCH_cpm_SHA256": "2020b4fc42dba44817983e06342e682ecfc3d2f484a581f11cc5731fbe4dce8a",
-                "GITHUB_BRANCH_toolchain": "HEAD",
-                "GITHUB_BRANCH_toolchain_SHA256": "1245",
+                "GITHUB_BRANCH_toolchain": "v1.0.3",
+                "GITHUB_BRANCH_toolchain_SHA256": "412a57a63e8101b4777a330a7b47c130af3c79efb460b3cf56bf24e0a72f8708",
                 "GITHUB_BRANCH_stm32cubef4": "v1.28.3",
                 "GITHUB_BRANCH_stm32cubef4_SHA256": "c4d121386fc1b0d6566c4ae9e08af14b24eea089250a0e86ff341dcf7ddb256e"
             }

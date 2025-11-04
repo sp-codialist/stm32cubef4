@@ -14,8 +14,6 @@ file (
 
 include (cmake/CPM.cmake)
 include (cmake/deps.toolchain.cmake)
-include (cmake/deps.stm32cubef4.cmake)
-include (cmake/stm32cubef4.lib.cmake)
 project (
     stm32cubef4_lib
     VERSION 0.0.0.255
@@ -23,4 +21,5 @@ project (
     DESCRIPTION "STM32CubeF4 library with CMake integration"
 )
 
+include (cmake/deps.stm32cubef4.cmake)
 set (CMAKE_EXPORT_COMPILE_COMMANDS "ON")
