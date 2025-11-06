@@ -22,30 +22,10 @@ jobs:
           "stm32cubef4-r-gnuarm14.3",
           "stm32cubef4-d-gnuarm14.3"
         ]
-        
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        submodules: recursive
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ matrix.preset }}-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-${{ matrix.preset }}-
-          ${{ runner.os }}-buildx-
-
-    - name: Install CMake
-      uses: jwlawson/actions-setup-cmake@v1.14
-      with:
-        cmake-version: '3.28'
 
     - name: Configure CMake
       run: |
