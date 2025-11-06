@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/kodezine/kdocker:v1.0.6
+      image: ghcr.io/kodezine/kdocker:latest
     strategy:
       fail-fast: false
       matrix:
