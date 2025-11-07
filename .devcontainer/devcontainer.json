@@ -18,7 +18,8 @@
 				"hbenl.vscode-test-explorer",
 				"fpopescu.vscode-unity-test-adapter",
 				"marus25.cortex-debug",
-				"tintinweb.graphviz-interactive-preview"
+				"tintinweb.graphviz-interactive-preview",
+				"GitHub.vscode-github-actions"
 			]
 		}
 	},

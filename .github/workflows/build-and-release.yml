@@ -47,39 +47,13 @@ jobs:
         cpack -G "TGZ;ZIP" -C $BUILD_TYPE
         
         # List generated packages
-        ls -la *.tar.gz *.zip 2>/dev/null || true
-        
-    - name: Package artifacts (fallback)
-      run: |
-        # Create artifact directory
-        mkdir -p artifacts/${{ matrix.preset }}
-        
-        # Copy CPack generated packages first
-        if [ -d "build/${{ matrix.preset }}" ]; then
-          find build/${{ matrix.preset }} -name "*.tar.gz" -o -name "*.zip" -exec cp {} artifacts/${{ matrix.preset }}/ \; 2>/dev/null || true
-        fi
-        
-        # Fallback: Copy built libraries manually if CPack packages don't exist
-        if [ ! "$(ls -A artifacts/${{ matrix.preset }}/ 2>/dev/null)" ]; then
-          find build/${{ matrix.preset }} -name "*.a" -exec cp {} artifacts/${{ matrix.preset }}/ \; 2>/dev/null || true
-          
-          # Copy headers if they exist
-          if [ -d "build/${{ matrix.preset }}/include" ]; then
-            cp -r build/${{ matrix.preset }}/include artifacts/${{ matrix.preset }}/
-          fi
-          
-          # Create a manual tarball
-          if [ "$(ls -A artifacts/${{ matrix.preset }}/ 2>/dev/null)" ]; then
-            tar -czf artifacts/${{ matrix.preset }}/${{ matrix.preset }}-static-lib.tar.gz -C artifacts/${{ matrix.preset }} .
-          fi
-        fi
+        ls -la *.tar.gz *.zip
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.preset }}-packages
         path: |
-          artifacts/${{ matrix.preset }}/
           build/${{ matrix.preset }}/*.tar.gz
           build/${{ matrix.preset }}/*.zip
 
@@ -99,52 +73,11 @@ jobs:
 
     - name: Prepare release assets
       run: |
-        # Create release directory
+        # Create release directory and copy CPack generated packages
         mkdir -p release-assets
         
-        # Copy CPack generated packages for release
-        for preset in stm32cubef4-r-gnuarm14.3 stm32cubef4-d-gnuarm14.3; do
-          # Copy all CPack generated files
-          if [ -d "artifacts/${preset}-packages" ]; then
-            find "artifacts/${preset}-packages" -name "*.tar.gz" -o -name "*.zip" -exec cp {} release-assets/ \; 2>/dev/null || true
-          fi
-          
-          # Fallback to manual packages
-          if [ -f "artifacts/${preset}-packages/${preset}-static-lib.tar.gz" ]; then
-            cp "artifacts/${preset}-packages/${preset}-static-lib.tar.gz" "release-assets/"
-          fi
-        done
-        
-        # Create a combined development package
-        mkdir -p combined-release/debug combined-release/release combined-release/docs combined-release/cmake
-        
-        # Extract and organize packages
-        for file in release-assets/*.tar.gz; do
-          if [ -f "$file" ]; then
-            filename=$(basename "$file" .tar.gz)
-            mkdir -p "temp-extract/$filename"
-            tar -xzf "$file" -C "temp-extract/$filename" 2>/dev/null || true
-            
-            # Organize by build type
-            if [[ "$filename" =~ debug|d- ]]; then
-              cp -r "temp-extract/$filename"/* combined-release/debug/ 2>/dev/null || true
-            else
-              cp -r "temp-extract/$filename"/* combined-release/release/ 2>/dev/null || true
-            fi
-            
-            # Copy documentation and cmake files to common areas
-            find "temp-extract/$filename" -name "*.md" -o -name "*.txt" -o -name "*.html" -exec cp {} combined-release/docs/ \; 2>/dev/null || true
-            find "temp-extract/$filename" -name "*.cmake" -exec cp {} combined-release/cmake/ \; 2>/dev/null || true
-          fi
-        done
-        
-        # Create combined development package
-        if [ "$(ls -A combined-release/ 2>/dev/null)" ]; then
-          tar -czf release-assets/stm32cubef4-complete-${GITHUB_REF_NAME}.tar.gz -C combined-release .
-        fi
-        
-        # Cleanup
-        rm -rf temp-extract 2>/dev/null || true
+        # Copy all CPack generated tar.gz and zip files from artifacts
+        find artifacts/ -name "*.tar.gz" -o -name "*.zip" -exec cp {} release-assets/ \;
 
     - name: Extract version from tag
       id: get_version
@@ -161,29 +94,29 @@ jobs:
         
         ## What's Included
         
-        This release contains pre-built static libraries for STM32CubeF4:
+        This release contains pre-built static libraries with header files for STM32CubeF4:
         
-        - **Debug Build**: Compiled with debug symbols and optimizations disabled
-        - **Release Build**: Optimized build for production use
-        - **Combined Package**: Both debug and release libraries in one archive
+        - **Debug Build**: Static library compiled with debug symbols
+        - **Release Build**: Optimized static library for production use
+        
+        Each archive contains:
+        - Static library (\`.a\` file)
+        - Header files (\`.h\` files)  
+        - CMake configuration files
+        - License information
         
         ## Build Configuration
         
+        - **STM32CubeF4 Version**: Package version corresponds to STM32CubeF4 library version
         - **Toolchain**: ARM GCC 14.3
         - **CMake Version**: 3.28+
         - **Target**: STM32F4 series microcontrollers
         
-        ## Files
-        
-        - \`STM32CubeF4-*-debug.tar.gz\` - Debug library archive
-        - \`STM32CubeF4-*-debug.zip\` - Debug library ZIP  
-        - \`STM32CubeF4-*-release.tar.gz\` - Release library archive
-        - \`STM32CubeF4-*-release.zip\` - Release library ZIP
-        - \`stm32cubef4-complete-${{ steps.get_version.outputs.tag_name }}.tar.gz\` - Combined package
-        
         ## Usage
         
-        Extract the appropriate archive and link the static libraries in your STM32F4 project.
+        1. Extract the appropriate archive for your build type (debug/release)
+        2. Add the library and include paths to your STM32F4 project
+        3. Link against the static library
         
         ## Checksums
         
@@ -202,6 +135,7 @@ jobs:
         prerelease: ${{ contains(steps.get_version.outputs.tag_name, '-') }}
         files: |
           release-assets/*.tar.gz
+          release-assets/*.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -4,90 +4,13 @@
 # Include the main CPack module
 include(CPack)
 
-# Function to add install rules for documentation
-function(add_documentation_install)
-    # Install README files
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+# Function to add essential documentation (license only)
+function(add_essential_documentation_install)
+    # Install only essential license file with the library component
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/_deps/stm32cubef4-src/LICENSE.md")
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/_deps/stm32cubef4-src/LICENSE.md"
                 DESTINATION ${CMAKE_INSTALL_DOCDIR}
-                COMPONENT documentation)
-    endif()
-    
-    # Install license files
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
-                DESTINATION ${CMAKE_INSTALL_DOCDIR}
-                COMPONENT documentation)
-    endif()
-    
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.md")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.md"
-                DESTINATION ${CMAKE_INSTALL_DOCDIR}
-                COMPONENT documentation)
-    endif()
-    
-    # Install release notes
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/CHANGELOG.md"
-                DESTINATION ${CMAKE_INSTALL_DOCDIR}
-                COMPONENT documentation)
-    endif()
-    
-    # Install any documentation directory
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Documentation" AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Documentation")
-        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Documentation/"
-                DESTINATION ${CMAKE_INSTALL_DOCDIR}
-                COMPONENT documentation
-                PATTERN "*.pdf"
-                PATTERN "*.html"
-                PATTERN "*.md")
-    endif()
-endfunction()
-
-# Function to add install rules for examples
-function(add_examples_install)
-    # Check if there are example projects
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Examples" AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Examples")
-        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Examples/"
-                DESTINATION ${CMAKE_INSTALL_DATADIR}/${CPACK_PACKAGE_NAME}/examples
-                COMPONENT examples
-                PATTERN "build*" EXCLUDE
-                PATTERN ".git*" EXCLUDE)
-    endif()
-    
-    # Install project templates if available
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Projects" AND IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Projects")
-        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Projects/"
-                DESTINATION ${CMAKE_INSTALL_DATADIR}/${CPACK_PACKAGE_NAME}/projects
-                COMPONENT examples
-                PATTERN "build*" EXCLUDE
-                PATTERN "_deps*" EXCLUDE
-                PATTERN ".git*" EXCLUDE)
-    endif()
-endfunction()
-
-# Function to create development package
-function(add_development_install)
-    # Install CMake files for find_package support
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/cmake/"
-                DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CPACK_PACKAGE_NAME}
-                COMPONENT development
-                FILES_MATCHING PATTERN "*.cmake")
-    endif()
-    
-    # Install CMake presets for easy configuration
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CMakePresets.json")
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/CMakePresets.json"
-                DESTINATION ${CMAKE_INSTALL_DATADIR}/${CPACK_PACKAGE_NAME}
-                COMPONENT development)
-    endif()
-    
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CMakePresets")
-        install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/CMakePresets/"
-                DESTINATION ${CMAKE_INSTALL_DATADIR}/${CPACK_PACKAGE_NAME}/CMakePresets
-                COMPONENT development
-                FILES_MATCHING PATTERN "*.json")
+                COMPONENT library)
     endif()
 endfunction()
 
@@ -122,9 +45,7 @@ if(GIT_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
 endif()
 
 # Call the install functions
-add_documentation_install()
-add_examples_install()
-add_development_install()
+add_essential_documentation_install()
 
 # Validate required files exist
 if(NOT EXISTS "${CPACK_RESOURCE_FILE_LICENSE}")
